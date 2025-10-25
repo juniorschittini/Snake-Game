@@ -45,6 +45,7 @@ void StartFood(Game *g);
 void StartRound(Game *g);
 void DrawBody(Game *g);
 void DrawFood(Game *g);
+void DescarregaComida(Game *g);
 void DrawBordas(Game *g);
 void Drawgame(Game *g);
 void Updatedirection(Game *g);
