@@ -46,6 +46,8 @@ void StartRound(Game *g);
 void DrawBody(Game *g);
 void DrawFood(Game *g);
 void DrawBordas(Game *g);
+void DrawHomeScreen(Game *g);
+void DrawFinalScreen(Game *g);
 void Drawgame(Game *g);
 void Updatedirection(Game *g);
 void UpdatePosBody(Game *g);
