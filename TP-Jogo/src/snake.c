@@ -15,6 +15,10 @@
 #define FOOD_COLOR BLUE
 
 int gameOver = 1;
+int HomeScreen = 1;
+int FinalScreen = 0;
+int ganhou = 0;
+int perdeu = 0;
 
 void StartBody(Game *g){
     //Inicia a posição, direção e cor da cobra
@@ -33,6 +37,8 @@ void StartBordas(Game *g){
     //Borda da esquerda
     g->bordas[3].pos = (Rectangle) {0, 0, 10, ALTURA};
 }
+
+
 
 void StartFood(Game *g){
     //Gera uma posição aleatória para a comida
@@ -54,14 +60,8 @@ void DrawBody(Game *g){
        g->body.pos.y < 10 || g->body.pos.y + STD_SIZE_Y > ALTURA - 10){
         //Se a cobra sair da área de jogo, reinicia o jogo
         gameOver = 0;
-        DrawText("YOU LOOSE!", 105, 230, 80, WHITE);
-        DrawText("PRESS \"ENTER\" TO CONTINUE", 165, 600, 20, WHITE);
-        //Se o jogador apertar enter, reinicia a rodada
-        if (IsKeyPressed(KEY_ENTER)){
-            //atualiza o jogo para reiniciar a rodada
-            gameOver = 1;
-            StartRound(g);
-        }   
+        FinalScreen = 1;
+        perdeu = 1;
     }
 }
 
@@ -80,9 +80,47 @@ void DrawBordas(Game *g){
     }
 }
 
+void DrawHomeScreen(Game *g){
+    //Desenha a tela inicial do jogo
+    DrawText("SNAKE GAME", 165, 100, 50, GREEN);
+    DrawText("PRESS \"ENTER\" TO START", 180, 400, 20, WHITE);
+    if (IsKeyPressed(KEY_ENTER)){
+        HomeScreen = 0;
+        StartRound(g);
+    }
+}
+
+void DrawFinalScreen(Game *g){
+    //Desenha a tela final do jogo
+    if (gameOver == 0 && ganhou == 1) {
+        DrawText("YOU WIN!", 200, 200, 80, GOLD);
+        DrawText("PRESS \"ENTER\" TO PLAY AGAIN", 150, 500, 20, WHITE);
+            if (IsKeyPressed(KEY_ENTER)){
+                FinalScreen = 0;
+                StartRound(g);}
+    } if ( gameOver == 0 && perdeu == 1) {
+        DrawText("YOU LOOSE!", 105, 230, 80, RED);
+        DrawText("PRESS \"ENTER\" TO CONTINUE", 165, 600, 20, WHITE);
+        //Se o jogador apertar enter, reinicia a rodada
+        if (IsKeyPressed(KEY_ENTER)){
+            //atualiza o jogo para reiniciar a rodada
+            gameOver = 1;
+            StartRound(g);
+        } 
+    }  
+}
+
 void Drawgame(Game *g){
     //Desenha o jogo
     DrawBordas(g);
+    if (HomeScreen){
+        DrawHomeScreen(g);
+        return;
+    }
+    if (FinalScreen){
+        DrawFinalScreen(g);
+        return;
+    }
     DrawBody(g);
     DrawFood(g);
 }
