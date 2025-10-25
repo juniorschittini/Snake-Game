@@ -2,7 +2,7 @@
 TARGET = snake
 
 # Os arquivos-objeto necessários para criar o executável
-OBJS = main.o snake.o
+OBJS = main.o snake.o -lm -lraylib
 
 # O compilador que será usado
 CC = gcc
@@ -30,7 +30,7 @@ snake.o: snake.c snake.h
 
 # Regra 'run': executa o programa
 run: $(TARGET)
-	./$(TARGET) < entrada.txt
+	./$(TARGET)
 
 # Regra 'clean': remove todos os arquivos compilados (objetos e executável)
 clean:
