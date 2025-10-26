@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define LARGURA 660
 #define ALTURA 660
@@ -19,13 +20,28 @@ int HomeScreen = 1;
 int FinalScreen = 0;
 int ganhou = 0;
 int perdeu = 0;
+int not_grow = true;
+
+Body* CreatSegment (float x, float y, Color color, Rectangle pos){
+    Body* segment = (Body*)malloc(sizeof(Body));
+    segment->pos = (Rectangle){x, y, STD_SIZE_X, STD_SIZE_Y};
+    segment->color = color;
+    segment->next = NULL;
+    segment->prev = NULL;
+    return segment;
+}
 
 void StartBody(Game *g){
-    //Inicia a posição, direção e cor da cobra
+    // Inicia a posição, direção e cor da cobra
     g->body.pos = (Rectangle) {LARGURA/2 - STD_SIZE_X, ALTURA - STD_SIZE_Y -10, STD_SIZE_X, STD_SIZE_Y};
     g->body.direction = 0;
     g->body.color = SNAKE_COLOR;
-    }
+    // Cria o primeiro segmento (cabeça) usando a posição recém-definida
+    Body* head = CreatSegment(g->body.pos.x, g->body.pos.y, g->body.color, g->body.pos);
+    g->snake.head = head;
+    g->snake.tail = head;
+    g->snake.length = 1;
+}
 
 void StartBordas(Game *g){
     //Borda de cima
@@ -54,14 +70,66 @@ void StartRound(Game *g){
     g->time = GetTime();
 }
 
+// Função principal de movimento e crescimento
+void MoveGrowSnake(Game *g, int novo_x, int novo_y, bool not_grow) {
+    // 1. Cria a nova Cabeça (Inserção no Início)
+    
+    Body *new_head = CreatSegment (novo_x, novo_y, g->body.color, g->body.pos);
+
+    // Conecta o novo segmento na frente da antiga cabeça
+    new_head->next = g->snake.head;
+    g->snake.head->prev = new_head;
+    
+    // Atualiza a cabeça da cobra
+    g->snake.head = new_head;;
+    g->snake.length++;
+
+    // 2. Remove a Cauda (Se não houve crescimento)
+    if (not_grow) {
+        Body *remove_tail = g->snake.tail;
+        
+        // O nó anterior à cauda passa a ser a nova cauda
+        Body *new_tail = remove_tail->prev;
+        
+        // Remove a ligação para o nó antigo da cauda
+        if (new_tail != NULL) {
+            new_tail->next = NULL;
+            g->snake.tail = new_tail;
+            g->snake.length--;
+            
+            // Libera a memória do segmento removido
+            free(remove_tail);
+        }
+        // Caso especial: se a cobra tem 1 segmento (não deveria acontecer no loop do jogo, mas é boa prática)
+        else {
+            // Se só tem 1 segmento, ele está sendo removido. A lista fica vazia.
+            g->snake.head = NULL;
+            g->snake.tail = NULL;
+            g->snake.length = 0;
+            free(remove_tail);
+        }
+    }
+    // Se nao_crescer for 'false', a cauda não é removida, e a cobra cresce 1 segmento!
+}
+
 void DrawBody(Game *g){
-    DrawRectangleRec(g->body.pos, g->body.color);
-    if(g->body.pos.x < 10 || g->body.pos.x + STD_SIZE_X > LARGURA - 10 ||
-       g->body.pos.y < 10 || g->body.pos.y + STD_SIZE_Y > ALTURA - 10){
-        //Se a cobra sair da área de jogo, reinicia o jogo
-        gameOver = 0;
-        FinalScreen = 1;
-        perdeu = 1;
+    // Percorre a lista de segmentos e desenha cada um
+    Body *cur = g->snake.head;
+    while (cur != NULL) {
+        DrawRectangleRec(cur->pos, cur->color);
+        cur = cur->next;
+    }
+
+    // Verifica colisão da cabeça com as bordas
+    if (g->snake.head != NULL) {
+        Rectangle headPos = g->snake.head->pos;
+        if(headPos.x < 10 || headPos.x + STD_SIZE_X > LARGURA - 10 ||
+           headPos.y < 10 || headPos.y + STD_SIZE_Y > ALTURA - 10){
+            // Se a cobra sair da área de jogo, sinaliza fim de jogo
+            gameOver = 0;
+            FinalScreen = 1;
+            perdeu = 1;
+        }
     }
 }
 
@@ -105,6 +173,8 @@ void DrawFinalScreen(Game *g){
         if (IsKeyPressed(KEY_ENTER)){
             //atualiza o jogo para reiniciar a rodada
             gameOver = 1;
+            FinalScreen = 0;
+            perdeu = 0;
             StartRound(g);
         } 
     }  
@@ -148,18 +218,37 @@ void Updatedirection(Game *g){
 
 
 void UpdatePosBody(Game *g){
-    // Atualiza a posição da cobra conforme a direção
+    // Calcula a nova posição da cabeça com base na direção atual
+    if (g->snake.head == NULL) return;
+
+    int new_x = (int)g->snake.head->pos.x;
+    int new_y = (int)g->snake.head->pos.y;
+
     if (g->body.direction == 0){
-        g->body.pos.y -= STD_SIZE_Y;
+        new_y -= STD_SIZE_Y;
     }
     if (g->body.direction == 1){
-        g->body.pos.x += STD_SIZE_X;
+        new_x += STD_SIZE_X;
     }
     if (g->body.direction == 2){
-        g->body.pos.y += STD_SIZE_Y;
+        new_y += STD_SIZE_Y;
     }
     if (g->body.direction == 3){
-        g->body.pos.x -= STD_SIZE_X;
+        new_x -= STD_SIZE_X;
+    }
+
+    // Cria retângulo temporário para checar colisão com a comida
+    Rectangle newHeadRect = (Rectangle){(float)new_x, (float)new_y, STD_SIZE_X, STD_SIZE_Y};
+
+    // Se a nova posição colidir com a comida, não remover a cauda (cresce)
+    bool willGrow = CheckCollisionRecs(newHeadRect, g->food.pos);
+
+    // Move/grow a cobra usando a função que gerencia lista encadeada
+    MoveGrowSnake(g, new_x, new_y, !willGrow);
+
+    // Se cresceu (colidiu com comida), gera nova comida
+    if (willGrow) {
+        UpdatePosFood(g);
     }
 }
 
@@ -178,15 +267,11 @@ void UpdateRodada(Game *g){
         g->time = GetTime();
         g->cooldown = COOLDOWN;
     }
-    if(CollisionFood(g)){
-        UpdatePosFood(g);
-        DrawBody(g);
-    }
 }
 
 int CollisionFood(Game *g){
-    //Verifica se a cobra colidiu com a comida
-    if (CheckCollisionRecs(g->body.pos, g->food.pos)){
+    // Verifica se a cabeça da cobra colidiu com a comida
+    if (g->snake.head != NULL && CheckCollisionRecs(g->snake.head->pos, g->food.pos)){
         return 1;
     }
     return 0;
