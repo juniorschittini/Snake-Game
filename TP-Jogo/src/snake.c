@@ -54,8 +54,6 @@ void StartBordas(Game *g){
     g->bordas[3].pos = (Rectangle) {0, 0, 10, ALTURA};
 }
 
-
-
 void StartFood(Game *g){
     //Gera uma posição aleatória para a comida
     g->food.pos = (Rectangle) {(float)(rand() % ((ALTURA - 20) / STD_SIZE_Y) * STD_SIZE_Y + 10), (float)(rand() % ((ALTURA - 20) / STD_SIZE_Y) * STD_SIZE_Y + 10), STD_SIZE_X, STD_SIZE_Y};
@@ -63,11 +61,26 @@ void StartFood(Game *g){
 }
 
 void StartRound(Game *g){
-    //Inicia uma nova rodada
+    //Inicia uma nova rodada: libera qualquer snake anterior, depois inicializa
+    FreeSnake(g);
     StartBordas(g);
     StartBody(g);
     StartFood(g);
     g->time = GetTime();
+}
+
+// Libera todos os segmentos da cobra (lista encadeada)
+void FreeSnake(Game *g){
+    if (g == NULL) return;
+    Body *cur = g->snake.head;
+    while (cur != NULL) {
+        Body *next = cur->next;
+        free(cur);
+        cur = next;
+    }
+    g->snake.head = NULL;
+    g->snake.tail = NULL;
+    g->snake.length = 0;
 }
 
 // Função principal de movimento e crescimento
@@ -112,6 +125,27 @@ void MoveGrowSnake(Game *g, int novo_x, int novo_y, bool not_grow) {
     // Se nao_crescer for 'false', a cauda não é removida, e a cobra cresce 1 segmento!
 }
 
+// Verifica se a cobra colidiu com seu próprio corpo
+bool CheckSelfCollision(Game *g) {
+    if (g->snake.head == NULL || g->snake.head->next == NULL) return false;
+    
+    // Pega a posição da cabeça
+    Rectangle headPos = g->snake.head->pos;
+    
+    // Começa do segundo segmento (pula a cabeça)
+    Body *cur = g->snake.head->next;
+    
+    // Verifica colisão com cada segmento do corpo
+    while (cur != NULL) {
+        if (CheckCollisionRecs(headPos, cur->pos)) {
+            return true;
+        }
+        cur = cur->next;
+    }
+    
+    return false;
+}
+
 void DrawBody(Game *g){
     // Percorre a lista de segmentos e desenha cada um
     Body *cur = g->snake.head;
@@ -119,13 +153,18 @@ void DrawBody(Game *g){
         DrawRectangleRec(cur->pos, cur->color);
         cur = cur->next;
     }
-
-    // Verifica colisão da cabeça com as bordas
+    if (g->snake.length >= 25){
+        gameOver = 0;
+        FinalScreen = 1;
+        ganhou = 1;
+    }
+    // Verifica colisão da cabeça com as bordas e com o próprio corpo
     if (g->snake.head != NULL) {
         Rectangle headPos = g->snake.head->pos;
         if(headPos.x < 10 || headPos.x + STD_SIZE_X > LARGURA - 10 ||
-           headPos.y < 10 || headPos.y + STD_SIZE_Y > ALTURA - 10){
-            // Se a cobra sair da área de jogo, sinaliza fim de jogo
+           headPos.y < 10 || headPos.y + STD_SIZE_Y > ALTURA - 10 ||
+           CheckSelfCollision(g)){ 
+            // Se a cobra sair da área de jogo ou colidir consigo mesma, sinaliza fim de jogo
             gameOver = 0;
             FinalScreen = 1;
             perdeu = 1;
@@ -140,7 +179,6 @@ void DrawFood(Game *g){
     }
 }
 
-
 void DrawBordas(Game *g){
     //Desenha as barreiras nas bordas
     for (int i = 0; i < 4; i++){
@@ -150,8 +188,8 @@ void DrawBordas(Game *g){
 
 void DrawHomeScreen(Game *g){
     //Desenha a tela inicial do jogo
-    DrawText("SNAKE GAME", 165, 100, 50, GREEN);
-    DrawText("PRESS \"ENTER\" TO START", 180, 400, 20, WHITE);
+    DrawText ("SNAKE GAME", 165, 100, 50, GREEN);
+    DrawText("Hit - Enter - ", 250, 600, 20, WHITE);
     if (IsKeyPressed(KEY_ENTER)){
         HomeScreen = 0;
         StartRound(g);
@@ -161,14 +199,16 @@ void DrawHomeScreen(Game *g){
 void DrawFinalScreen(Game *g){
     //Desenha a tela final do jogo
     if (gameOver == 0 && ganhou == 1) {
-        DrawText("YOU WIN!", 200, 200, 80, GOLD);
-        DrawText("PRESS \"ENTER\" TO PLAY AGAIN", 150, 500, 20, WHITE);
+        DrawText("YOU WIN!", 150, 230, 80, GOLD);
+        DrawText("Hit - Enter - ", 250, 600, 20, WHITE);
             if (IsKeyPressed(KEY_ENTER)){
+                gameOver = 1;   
                 FinalScreen = 0;
+                ganhou = 0;
                 StartRound(g);}
     } if ( gameOver == 0 && perdeu == 1) {
         DrawText("YOU LOOSE!", 105, 230, 80, RED);
-        DrawText("PRESS \"ENTER\" TO CONTINUE", 165, 600, 20, WHITE);
+        DrawText("Hit - Enter - ", 250, 600, 20, WHITE);
         //Se o jogador apertar enter, reinicia a rodada
         if (IsKeyPressed(KEY_ENTER)){
             //atualiza o jogo para reiniciar a rodada
@@ -215,8 +255,6 @@ void Updatedirection(Game *g){
     }
 }
 
-
-
 void UpdatePosBody(Game *g){
     // Calcula a nova posição da cabeça com base na direção atual
     if (g->snake.head == NULL) return;
@@ -256,11 +294,11 @@ void UpdatePosFood(Game *g){
     //Gera uma nova posição para a comida
     g->food.pos = (Rectangle) {(float)(rand() % ((ALTURA - 20) / STD_SIZE_Y) * STD_SIZE_Y + 10), 
         (float)(rand() % ((ALTURA - 20) / STD_SIZE_Y) * STD_SIZE_Y + 10), STD_SIZE_X, STD_SIZE_Y};
-
 }
 
 void UpdateRodada(Game *g){
     // Atualiza o estado do jogo a cada frame
+    DrawText(TextFormat("Score: %d", g->snake.length - 1), 10, 10, 20, WHITE);
     Updatedirection(g);
     if (GetTime() - g->time > TIME){
         UpdatePosBody(g);
