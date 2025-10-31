@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define LARGURA 660
 #define ALTURA 660
@@ -17,9 +18,8 @@
 
 
 int main(){
-    Game game;
+    Game game = {0};
     int gameOver = 1;
-    //Cria a janela;
     InitWindow(LARGURA, ALTURA, "Snake Game");
     SetTargetFPS(60);
     srand(time(NULL));
@@ -37,6 +37,7 @@ int main(){
         } 
         EndDrawing();
     }
+    FreeSnake(&game);
     CloseWindow();
     return 0;
 }
