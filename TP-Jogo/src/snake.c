@@ -153,7 +153,7 @@ void DrawBody(Game *g){
         DrawRectangleRec(cur->pos, cur->color);
         cur = cur->next;
     }
-    if (g->snake.length >= 25){
+    if (g->snake.length >= 26){
         gameOver = 0;
         FinalScreen = 1;
         ganhou = 1;
